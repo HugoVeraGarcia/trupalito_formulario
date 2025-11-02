@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Trupalito 4.0 – Cotizador</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg,#000 0%,#101820 100%);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:100vh;
+      margin:0;
+      padding:20px;
+    }
+    .container {
+      background:#1a1a1a;
+      border-radius:16px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);
+      padding:28px;
+      width:100%;
+      max-width:700px;
+    }
+    h1 { text-align:center; margin:0 0 18px; font-size:24px; }
+    form { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .full { grid-column:1 / -1; }
+    label { display:block; margin-bottom:6px; font-weight:600; font-size:14px; color:#ddd; }
+    input, select {
+      width:100%; padding:10px 12px; border-radius:8px; border:2px solid #333;
+      background:#0f0f0f; color:#fff; font-size:14px; outline:none;
+    }
+    input:focus, select:focus { border-color:#555; box-shadow:0 0 10px rgba(85,85,85,0.25); }
+    button {
+      padding:12px 18px; border-radius:10px; border:none; font-weight:700;
+      cursor:pointer; font-size:15px;
+      background:linear-gradient(135deg,#555 0%,#333 100%);
+    }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .messages { margin-top:14px; display:grid; gap:10px; }
+    .error { color:#ff8a8a; font-size:14px; }
+    .box {
+      background:linear-gradient(135deg,#111,#0b0b0b);
+      border-radius:10px; padding:12px; font-size:13px; color:#ddd; overflow:auto;
+    }
+    pre { margin:0; white-space:pre-wrap; word-break:break-word; color:#9f9; background:transparent; }
+    @media (max-width:700px) {
+      form { grid-template-columns: 1fr; }
+    }
+    .page-logo {
+                position: fixed;
+                top: 20px;
+                left: 40px;
+                z-index: 10;
+    }
+
+        .page-logo img {
+            width: 160px;          /* ajusta el tamaño */
+            height: auto;
+            border-radius: 12px;  /* opcional */
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.6)); /* sombra suave */
+            transition: transform 0.3s ease;
+    }
+
+        .page-logo img:hover {
+            transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="page-logo">
+        <img src="../public/logo.png" alt="Logo Trupal">
+    </div>
+  <div class="container">
+    <h1>🧾 Trupalito 4.0 — Cotizador</h1>
+
+    <form id="cotizacionForm" autocomplete="off">
+      <div class="full">
+        <label for="carton">Tipo de cartón</label>
+        <select id="carton" required>
+          <option value="">Seleccione...</option>
+          <option value="312B">Liviano</option>
+          <option value="963BC">Pesado</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="ancho">Ancho (cm)</label>
+        <input id="ancho" type="number" min="10" max="200" required />
+      </div>
+
+      <div>
+        <label for="largo">Largo (cm)</label>
+        <input id="largo" type="number" min="10" max="200" required />
+      </div>
+
+      <div>
+        <label for="alto">Alto (cm)</label>
+        <input id="alto" type="number" min="10" max="200" required />
+      </div>
+
+      <div>
+        <label for="colores">Número de colores</label>
+        <select id="colores" required>
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="troquel">Troquel</label>
+        <select id="troquel" required>
+          <option value="No">No</option>
+          <option value="Sí">Sí</option>
+        </select>
+      </div>
+
+      <div class="full">
+        <label for="cantidad">Cantidad de cajas</label>
+        <input id="cantidad" type="number" min="100" required />
+      </div>
+
+      <div class="full" style="display:flex; gap:10px;">
+        <button id="sendButton" type="submit">Enviar cotización</button>
+        <button id="resetButton" type="button">Limpiar</button>
+      </div>
+    </form>
+
+    <div class="messages">
+      <div id="error" class="error"></div>
+
+      <div id="sentBox" class="box" style="display:none;">
+        <strong>Payload enviado (body):</strong>
+        <pre id="payloadSent"></pre>
+      </div>
+
+      <div id="responseBox" class="box" style="display:none;">
+        <strong>📥 Respuesta:</strong>
+        <pre id="responseText" style="font-size: 1.3rem; font-weight: 500; color: #fff; white-space: pre-wrap;"></pre>
+      </div>
+    </div>
+  </div>
+
+<script>
+const WEBHOOK_URL = 'https://hugovera2025.app.n8n.cloud/webhook/f3b90766-1a34-46cb-a0df-6facd86772ea/chat';
+
+const form = document.getElementById('cotizacionForm');
+const errorDiv = document.getElementById('error');
+const payloadSent = document.getElementById('payloadSent');
+const responseText = document.getElementById('responseText');
+const sentBox = document.getElementById('sentBox');
+const responseBox = document.getElementById('responseBox');
+const resetButton = document.getElementById('resetButton');
+const sendButton = document.getElementById('sendButton');
+
+let sessionId = localStorage.getItem('trupalitoSessionId') || crypto.randomUUID();
+localStorage.setItem('trupalitoSessionId', sessionId);
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorDiv.textContent = '';
+  sendButton.disabled = true;
+
+  // Arma el JSON del formulario
+  const data = {
+    carton: document.getElementById('carton').value,
+    ancho: Number(document.getElementById('ancho').value),
+    largo: Number(document.getElementById('largo').value),
+    alto: Number(document.getElementById('alto').value),
+    colores: Number(document.getElementById('colores').value),
+    troquel: document.getElementById('troquel').value,
+    cantidad: Number(document.getElementById('cantidad').value),
+  };
+
+  const payload = {
+    chatInput: `Cotiza una caja con carton = ${data.carton}, ancho = ${data.ancho}, largo = ${data.largo}, alto = ${data.alto}, colores = ${data.colores}, troquel = ${data.troquel}, cantidad = ${data.cantidad}.`,
+    //json: data,
+    sessionId: sessionId,
+    metadata: { source: 'Trupalito 4.0 Web' }
+  };
+
+  // Muestra payload enviado
+  //sentBox.style.display = 'block';
+  //payloadSent.textContent = JSON.stringify(payload, null, 2);
+
+  try {
+    const response = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error del servidor: ${response.status}`);
+    }
+
+    let result = await response.json();
+    result = result.output
+    console.log("resultado ", result)
+
+    responseBox.style.display = 'block';
+    responseText.textContent = JSON.stringify(result, null, 2);
+
+  } catch (error) {
+    console.error(error);
+    errorDiv.textContent = '❌ No se pudo conectar con el servidor n8n.';
+  } finally {
+    sendButton.disabled = false;
+  }
+});
+
+resetButton.addEventListener('click', () => {
+  form.reset();
+  errorDiv.textContent = '';
+  sentBox.style.display = 'none';
+  responseBox.style.display = 'none';
+});
+</script>
+</body>
+</html>
